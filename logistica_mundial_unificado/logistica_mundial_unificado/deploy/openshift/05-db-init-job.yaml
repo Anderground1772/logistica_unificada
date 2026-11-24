@@ -1,0 +1,40 @@
+# Carga database/init.sql (tablas + datos de demostración) UNA vez.
+# Requiere el ConfigMap "logistica-init-sql" (ver README, paso 4).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-init
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: registry.redhat.io/rhel9/mysql-80:latest
+          envFrom:
+            - secretRef:
+                name: logistica-db
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              export MYSQL_PWD="$MYSQL_PASSWORD"
+              until mysql -h mysql -u"$MYSQL_USER" -D "$MYSQL_DATABASE" -e 'SELECT 1' >/dev/null 2>&1; do
+                echo "Esperando a MySQL..."; sleep 5
+              done
+              mysql -h mysql -u"$MYSQL_USER" --default-character-set=utf8mb4 < /init/init.sql
+              echo "Base de datos inicializada."
+          volumeMounts:
+            - name: init-sql
+              mountPath: /init
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: init-sql
+          configMap:
+            name: logistica-init-sql

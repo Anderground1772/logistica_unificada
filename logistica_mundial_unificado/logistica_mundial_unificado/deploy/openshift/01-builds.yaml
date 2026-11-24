@@ -1,0 +1,68 @@
+# Compila las imágenes dentro de OpenShift directamente desde GitHub.
+# Cambia spec.source.git.uri por la URL de tu repositorio.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: backend
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: frontend
+spec:
+  lookupPolicy:
+    local: true
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: backend
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/TU_USUARIO/TU_REPOSITORIO.git
+      ref: main
+    contextDir: backend
+    # Repositorio privado: oc create secret generic github-token --type=kubernetes.io/basic-auth \
+    #   --from-literal=username=TU_USUARIO --from-literal=password=TU_TOKEN
+    # y descomenta:
+    # sourceSecret:
+    #   name: github-token
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: backend:latest
+  triggers:
+    - type: ConfigChange
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: frontend
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/TU_USUARIO/TU_REPOSITORIO.git
+      ref: main
+    contextDir: frontend
+    # sourceSecret:
+    #   name: github-token
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: frontend:latest
+  triggers:
+    - type: ConfigChange

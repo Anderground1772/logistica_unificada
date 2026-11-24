@@ -1,0 +1,2 @@
+Proyecto unificado a partir de logistica_mundial.zip y logistica-mundial-angular-completo.zip.
+Instalación, ejecución local, GitHub y despliegue en OpenShift: ver README.md.

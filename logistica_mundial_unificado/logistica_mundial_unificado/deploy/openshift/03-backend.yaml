@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels: { app: logistica, component: backend }
+  annotations:
+    image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"backend:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"backend\")].image"}]'
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: logistica, component: backend }
+  template:
+    metadata:
+      labels: { app: logistica, component: backend }
+    spec:
+      containers:
+        - name: backend
+          image: backend:latest
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - { name: PORT, value: "3000" }
+            - { name: NODE_ENV, value: production }
+            - { name: DB_HOST, value: mysql }
+            - { name: DB_PORT, value: "3306" }
+            - { name: DB_USER, valueFrom: { secretKeyRef: { name: logistica-db, key: MYSQL_USER } } }
+            - { name: DB_PASSWORD, valueFrom: { secretKeyRef: { name: logistica-db, key: MYSQL_PASSWORD } } }
+            - { name: DB_NAME, valueFrom: { secretKeyRef: { name: logistica-db, key: MYSQL_DATABASE } } }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          livenessProbe:
+            httpGet: { path: /api/live, port: 3000 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          readinessProbe:
+            httpGet: { path: /api/health, port: 3000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels: { app: logistica, component: backend }
+spec:
+  selector: { app: logistica, component: backend }
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
